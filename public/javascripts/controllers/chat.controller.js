@@ -6,7 +6,8 @@ angular.module('socket', []);
 
 angular.module('socket')
     .controller("Chat", function ($scope) {
-        var websocket = new WebSocket('wss://' + location.host + '/one2many' );
+        var kmsUri = 'wss://' + location.host + '/one2many';
+        var websocket = new WebSocket(kmsUri);
         var webRtcPeer;
 
         websocket.onmessage = function(message) {
@@ -100,6 +101,16 @@ angular.module('socket')
             }
         };
 
+        $scope.stop = function() {
+            if (webRtcPeer) {
+                var message = {
+                    id : 'stop'
+                };
+                sendMessage(message);
+                dispose();
+            }
+        };
+
         function onOfferViewer(error, offerSdp) {
             if (error) return onError(error);
 
@@ -119,16 +130,6 @@ angular.module('socket')
             };
             sendMessage(message);
         }
-
-        $scope.stop = function() {
-            if (webRtcPeer) {
-                var message = {
-                    id : 'stop'
-                };
-                sendMessage(message);
-                dispose();
-            }
-        };
 
         function dispose() {
             if (webRtcPeer) {
