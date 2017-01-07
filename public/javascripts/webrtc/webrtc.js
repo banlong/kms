@@ -165,35 +165,23 @@ var WebRtc = function (server) {
                 }
 
                 presenter.pipeline = pipeline;
-                pipeline.create('WebRtcEndpoint', function(error, webRtcEndpoint) {
+                //Record the stream
+                recordParams = {
+                    //mediaPipeline: pipeline, //This cannot be specified when using pipeline.create('RecorderEndpoint', ...)
+                    //stopOnEndOfStream: true, //This is not mandatory and I think you should remove it if you don't know precisely what it's doing
+                    //uri: ws_uri //This needs to point to a file where you want to record the media
+                    uri : "file:///tmp/the_file_name_i_want.webm" //The media server user must have wirte permissions for creating this file
+                };
+                pipeline.create("RecorderEndpoint", recordParams, function(error, recorderEndpoint) {
                     if (error) {
-                        stop(sessionId);
-                        return callback(error);
+                        return sendError(res, 500, error);
                     }
 
-                    if (presenter === null) {
-                        stop(sessionId);
-                        return callback(noPresenterMessage);
-                    }
+                    //recorderEndpoint = recorder; //just use the variable given from the callback.
+                    recorderEndpoint.record();
+                    console.log("Recording ...");
 
-                    presenter.webRtcEndpoint = webRtcEndpoint;
-
-                    if (candidatesQueue[sessionId]) {
-                        while(candidatesQueue[sessionId].length) {
-                            var candidate = candidatesQueue[sessionId].shift();
-                            webRtcEndpoint.addIceCandidate(candidate);
-                        }
-                    }
-
-                    webRtcEndpoint.on('OnIceCandidate', function(event) {
-                        var candidate = kurento.getComplexType('IceCandidate')(event.candidate);
-                        ws.send(JSON.stringify({
-                            id : 'iceCandidate',
-                            candidate : candidate
-                        }));
-                    });
-
-                    webRtcEndpoint.processOffer(sdpOffer, function(error, sdpAnswer) {
+                    pipeline.create('WebRtcEndpoint', function(error, webRtcEndpoint) {
                         if (error) {
                             stop(sessionId);
                             return callback(error);
@@ -204,32 +192,44 @@ var WebRtc = function (server) {
                             return callback(noPresenterMessage);
                         }
 
-                        callback(null, sdpAnswer);
-                    });
+                        presenter.webRtcEndpoint = webRtcEndpoint;
 
-                    webRtcEndpoint.gatherCandidates(function(error) {
-                        if (error) {
-                            stop(sessionId);
-                            return callback(error);
+                        if (candidatesQueue[sessionId]) {
+                            while(candidatesQueue[sessionId].length) {
+                                var candidate = candidatesQueue[sessionId].shift();
+                                webRtcEndpoint.addIceCandidate(candidate);
+                            }
                         }
+
+                        webRtcEndpoint.on('OnIceCandidate', function(event) {
+                            var candidate = kurento.getComplexType('IceCandidate')(event.candidate);
+                            ws.send(JSON.stringify({
+                                id : 'iceCandidate',
+                                candidate : candidate
+                            }));
+                        });
+
+                        webRtcEndpoint.processOffer(sdpOffer, function(error, sdpAnswer) {
+                            if (error) {
+                                stop(sessionId);
+                                return callback(error);
+                            }
+
+                            if (presenter === null) {
+                                stop(sessionId);
+                                return callback(noPresenterMessage);
+                            }
+
+                            callback(null, sdpAnswer);
+                        });
+
+                        webRtcEndpoint.gatherCandidates(function(error) {
+                            if (error) {
+                                stop(sessionId);
+                                return callback(error);
+                            }
+                        });
                     });
-                });
-
-                //Record the stream
-                recordParams = {
-                    //mediaPipeline: pipeline, //This cannot be specified when using pipeline.create('RecorderEndpoint', ...)
-                    //stopOnEndOfStream: true, //This is not mandatory and I think you should remove it if you don't know precisely what it's doing
-                    //uri: ws_uri //This needs to point to a file where you want to record the media
-                    uri : "file:///tmp/the_file_name_i_want.webm" //The media server user must have wirte permissions for creating this file
-                };
-                pipeline.create("RecorderEndpoint", recordParams, function(error, recorderEndpoint) {
-                    if (error) {
-                        console.log("Recorder problem");
-                        return sendError(res, 500, error);
-                    }
-
-                    //recorderEndpoint = recorder; //just use the variable given from the callback.
-                    recorderEndpoint.record();
                 });
 
             });
