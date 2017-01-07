@@ -187,6 +187,15 @@ var WebRtc = function (server) {
                             return callback(error);
                         }
 
+                        //-------------------------------------
+                        webRtcEndpoint.connect(recorderEndpoint, function(error) {
+                            if(error) {
+                                webRtcEndpoint.release();
+                                return sendError(res, 500, error);
+                            }
+                        });
+                        //-------------------------------------
+
                         if (presenter === null) {
                             stop(sessionId);
                             return callback(noPresenterMessage);
