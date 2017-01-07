@@ -214,6 +214,24 @@ var WebRtc = function (server) {
                         }
                     });
                 });
+
+                //Record the stream
+                recordParams = {
+                    //mediaPipeline: pipeline, //This cannot be specified when using pipeline.create('RecorderEndpoint', ...)
+                    //stopOnEndOfStream: true, //This is not mandatory and I think you should remove it if you don't know precisely what it's doing
+                    //uri: ws_uri //This needs to point to a file where you want to record the media
+                    uri : "file:///tmp/the_file_name_i_want.webm" //The media server user must have wirte permissions for creating this file
+                };
+                pipeline.create("RecorderEndpoint", recordParams, function(error, recorderEndpoint) {
+                    if (error) {
+                        console.log("Recorder problem");
+                        return sendError(res, 500, error);
+                    }
+
+                    //recorderEndpoint = recorder; //just use the variable given from the callback.
+                    recorderEndpoint.record();
+                });
+
             });
         });
     }
